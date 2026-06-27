@@ -1,9 +1,16 @@
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
 import os
 from config import Config
-from database import init_db, save_prediction, get_history, get_prediction_by_id
+from database import init_db, save_prediction, get_history, get_prediction_by_id, create_user, get_user_by_username, get_user_by_id
 from scraper.scraper import get_scraper
 from utils.pdf_generator import generate_pdf_report
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+
+class User(UserMixin):
+    def __init__(self, id, username):
+        self.id = id
+        self.username = username
 
 def create_app():
     app = Flask(__name__)
@@ -14,19 +21,67 @@ def create_app():
         os.makedirs(os.path.dirname(Config.DATABASE_PATH), exist_ok=True)
     init_db()
 
+    login_manager = LoginManager()
+    login_manager.login_view = 'login_page'
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        user_data = get_user_by_id(user_id)
+        if user_data:
+            return User(user_data['id'], user_data['username'])
+        return None
+
     # No static model loading needed (Dynamic AI logic used instead)
 
     @app.route('/')
     def home():
         return render_template('home.html')
 
+    @app.route('/login', methods=['GET', 'POST'])
+    def login_page():
+        if request.method == 'POST':
+            username = request.form.get('username')
+            password = request.form.get('password')
+            user_data = get_user_by_username(username)
+            if user_data and check_password_hash(user_data['password_hash'], password):
+                user = User(user_data['id'], user_data['username'])
+                login_user(user)
+                return redirect(url_for('home'))
+            else:
+                flash('Invalid username or password')
+        return render_template('login.html')
+
+    @app.route('/register', methods=['GET', 'POST'])
+    def register_page():
+        if request.method == 'POST':
+            username = request.form.get('username')
+            password = request.form.get('password')
+            if get_user_by_username(username):
+                flash('Username already exists')
+            else:
+                hashed_pw = generate_password_hash(password)
+                user_id = create_user(username, hashed_pw)
+                user = User(user_id, username)
+                login_user(user)
+                return redirect(url_for('home'))
+        return render_template('register.html')
+
+    @app.route('/logout')
+    @login_required
+    def logout_page():
+        logout_user()
+        return redirect(url_for('home'))
+
     @app.route('/analyze')
+    @login_required
     def analyze_page():
         return render_template('input.html')
 
     @app.route('/history')
+    @login_required
     def history_page():
-        logs = get_history(limit=50)
+        logs = get_history(user_id=current_user.id, limit=50)
         return render_template('history.html', history=logs)
 
     @app.route('/result/<int:pred_id>')
@@ -90,7 +145,8 @@ def create_app():
             confidence=result['confidence'],
             explanation=result['explanation'],
             sources_json=json.dumps(result['sources']),
-            keywords_json=json.dumps(result['highlighted_keywords'])
+            keywords_json=json.dumps(result['highlighted_keywords']),
+            user_id=current_user.id if current_user.is_authenticated else None
         )
         
         result['prediction_id'] = pred_id

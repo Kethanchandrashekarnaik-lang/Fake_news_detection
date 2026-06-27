@@ -4,6 +4,7 @@ import contextlib
 
 def get_db_connection():
     conn = sqlite3.connect(Config.DATABASE_PATH)
+    conn.execute('PRAGMA journal_mode=WAL;')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -32,6 +33,30 @@ def init_db():
                     FOREIGN KEY(user_id) REFERENCES users(id)
                 )
             ''')
+
+def create_user(username, password_hash):
+    with contextlib.closing(get_db_connection()) as conn:
+        with conn:
+            try:
+                cursor = conn.execute(
+                    'INSERT INTO users (username, password_hash) VALUES (?, ?)',
+                    (username, password_hash)
+                )
+                return cursor.lastrowid
+            except sqlite3.IntegrityError:
+                return None # Username exists
+
+def get_user_by_username(username):
+    with contextlib.closing(get_db_connection()) as conn:
+        cursor = conn.execute('SELECT * FROM users WHERE username = ?', (username,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_user_by_id(user_id):
+    with contextlib.closing(get_db_connection()) as conn:
+        cursor = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 def save_prediction(input_text, source_url, prediction, confidence, explanation, sources_json, keywords_json, user_id=None):
     with contextlib.closing(get_db_connection()) as conn:

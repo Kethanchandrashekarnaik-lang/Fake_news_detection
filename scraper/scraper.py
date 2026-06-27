@@ -3,21 +3,23 @@ from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
 import concurrent.futures
+from fake_useragent import UserAgent
 
 class NewsScraper:
     def __init__(self):
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
+        self.ua = UserAgent()
 
     def scrape_article(self, url):
         """
         Extracts main text content from a news article URL.
         """
         try:
-            response = requests.get(url, headers=self.headers, timeout=12)
+            headers = {
+                'User-Agent': self.ua.random,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+            response = requests.get(url, headers=headers, timeout=12)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')

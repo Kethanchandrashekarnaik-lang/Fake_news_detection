@@ -47,3 +47,4 @@ config.py
 
 # Logs
 *.log
+report.md
