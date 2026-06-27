@@ -169,8 +169,9 @@ def create_app():
 
     return app
 
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     # It's best practice on windows with waitress to run it: pip install waitress
     from waitress import serve
     print("Starting server on http://127.0.0.1:5000 ...")
