@@ -5,7 +5,7 @@
 Unlike traditional detectors that rely on static, outdated datasets, TruthLens performs **Internet-Verified AI Analysis**. It fetches live information from the web to check the validity of breaking news stories, claims, and articles instantly.
 
 ---
-
+## 📸 Live Server : https://aifake.vercel.app/
 ## 📸 System Architecture & Data Flow
 
 TruthLens processes claims through a pipeline that combines real-time scraping, search query generation, consensus analysis, and semantic highlighting:
